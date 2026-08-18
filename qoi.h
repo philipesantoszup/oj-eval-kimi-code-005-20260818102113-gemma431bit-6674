@@ -62,7 +62,7 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
             run++;
         } else {
             if (run > 0) {
-                QoiWriteU8(QOI_OP_RUN_TAG | (run - 1));
+                QoiWriteU8(QOI_OP_RUN_TAG | (uint8_t)run);
             }
             run = 0;
 
@@ -71,7 +71,7 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
             // 1. INDEX
             for (int j = 0; j < 64; ++j) {
                 if (history[j][0] == r && history[j][1] == g && history[j][2] == b && history[j][3] == a) {
-                    QoiWriteU8(QOI_OP_INDEX_TAG | j);
+                    QoiWriteU8(QOI_OP_INDEX_TAG | (uint8_t)j);
                     encoded = true;
                     break;
                 }
@@ -81,17 +81,17 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
                 // 2. DIFF
                 int diff_idx = -1;
                 int prev_idx = QoiColorHash(pre_r, pre_g, pre_b, pre_a);
-                if (std::abs(r - history[prev_idx][0]) <= 64 &&
-                    std::abs(g - history[prev_idx][1]) <= 64 &&
-                    std::abs(b - history[prev_idx][2]) <= 64 &&
-                    (channels == 3 || std::abs(a - history[prev_idx][3]) <= 64)) {
+                if (std::abs((int)r - (int)history[prev_idx][0]) <= 64 &&
+                    std::abs((int)g - (int)history[prev_idx][1]) <= 64 &&
+                    std::abs((int)b - (int)history[prev_idx][2]) <= 64 &&
+                    (channels == 3 || std::abs((int)a - (int)history[prev_idx][3]) <= 64)) {
                     diff_idx = prev_idx;
                 } else {
                     for (int j = 0; j < 64; ++j) {
-                        if (std::abs(r - history[j][0]) <= 64 &&
-                            std::abs(g - history[j][1]) <= 64 &&
-                            std::abs(b - history[j][2]) <= 64 &&
-                            (channels == 3 || std::abs(a - history[j][3]) <= 64)) {
+                        if (std::abs((int)r - (int)history[j][0]) <= 64 &&
+                            std::abs((int)g - (int)history[j][1]) <= 64 &&
+                            std::abs((int)b - (int)history[j][2]) <= 64 &&
+                            (channels == 3 || std::abs((int)a - (int)history[j][3]) <= 64)) {
                             diff_idx = j;
                             break;
                         }
@@ -99,12 +99,12 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
                 }
 
                 if (diff_idx != -1) {
-                    QoiWriteU8(QOI_OP_DIFF_TAG | diff_idx);
-                    QoiWriteU8(static_cast<uint8_t>(r - history[diff_idx][0]));
-                    QoiWriteU8(static_cast<uint8_t>(g - history[diff_idx][1]));
-                    QoiWriteU8(static_cast<uint8_t>(b - history[diff_idx][2]));
+                    QoiWriteU8(QOI_OP_DIFF_TAG | (uint8_t)diff_idx);
+                    QoiWriteU8((uint8_t)((int)r - (int)history[diff_idx][0]));
+                    QoiWriteU8((uint8_t)((int)g - (int)history[diff_idx][1]));
+                    QoiWriteU8((uint8_t)((int)b - (int)history[diff_idx][2]));
                     if (channels == 4) {
-                        QoiWriteU8(static_cast<uint8_t>(a - history[diff_idx][3]));
+                        QoiWriteU8((uint8_t)((int)a - (int)history[diff_idx][3]));
                     }
                     encoded = true;
                 }
@@ -120,12 +120,12 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
                     uint8_t ref_g = history[idx][1];
                     uint8_t ref_b = history[idx][2];
                     uint8_t ref_a = history[idx][3];
-                    int dr = r - ref_r;
+                    int dr = (int)r - (int)ref_r;
                     if (std::abs(dr) > 64) return false;
-                    uint8_t luma = (ref_r * 5 + ref_g * 4 + ref_b * 2) / 11;
-                    if (g - ref_g != (dr * luma) / 255) return false;
-                    if (b - ref_b != (dr * (255 - luma)) / 255) return false;
-                    if (channels == 4 && std::abs(a - ref_a) > 64) return false;
+                    int luma = (ref_r * 5 + ref_g * 4 + ref_b * 2) / 11;
+                    if ((int)g - (int)ref_g != (dr * luma) / 255) return false;
+                    if ((int)b - (int)ref_b != (dr * (255 - luma)) / 255) return false;
+                    if (channels == 4 && std::abs((int)a - (int)ref_a) > 64) return false;
                     return true;
                 };
 
@@ -141,10 +141,10 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
                 }
 
                 if (luma_idx != -1) {
-                    QoiWriteU8(QOI_OP_LUMA_TAG | luma_idx);
-                    QoiWriteU8(static_cast<uint8_t>(r - history[luma_idx][0]));
+                    QoiWriteU8(QOI_OP_LUMA_TAG | (uint8_t)luma_idx);
+                    QoiWriteU8((uint8_t)((int)r - (int)history[luma_idx][0]));
                     if (channels == 4) {
-                        QoiWriteU8(static_cast<uint8_t>(a - history[luma_idx][3]));
+                        QoiWriteU8((uint8_t)((int)a - (int)history[luma_idx][3]));
                     }
                     encoded = true;
                 }
@@ -166,7 +166,7 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
         }
     }
     if (run > 0) {
-        QoiWriteU8(QOI_OP_RUN_TAG | (run - 1));
+        QoiWriteU8(QOI_OP_RUN_TAG | (uint8_t)run);
     }
     for (int i = 0; i < 8; ++i) QoiWriteU8(QOI_PADDING[i]);
     return true;
@@ -188,11 +188,12 @@ bool QoiDecode(uint32_t &width, uint32_t &height, uint8_t &channels, uint8_t &co
     uint8_t pre_r = 0, pre_g = 0, pre_b = 0, pre_a = 255;
 
     uint32_t pixels_decoded = 0;
-    while (pixels_decoded < width * height) {
+    uint32_t total_pixels = width * height;
+    while (pixels_decoded < total_pixels) {
         uint8_t tag = QoiReadU8();
         if ((tag & 0xc0) == 0xc0 && tag < 0xfe) {
-            int run_len = (tag & 0x3f) + 1;
-            for (int j = 0; j < run_len; ++j) {
+            int run_len = (tag & 0x3f);
+            for (int j = 0; j < run_len && pixels_decoded < total_pixels; ++j) {
                 QoiWriteU8(pre_r); QoiWriteU8(pre_g); QoiWriteU8(pre_b);
                 if (channels == 4) QoiWriteU8(pre_a);
                 pixels_decoded++;
