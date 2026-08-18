@@ -78,7 +78,47 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
             }
 
             if (!encoded) {
-                // 2. DIFF
+                // 2. LUMA (Prioritize over DIFF for better compression)
+                int luma_idx = -1;
+                int prev_luma_idx = QoiColorHash(pre_r, pre_g, pre_b, pre_a);
+                
+                auto check_luma = [&](int idx) {
+                    uint8_t ref_r = history[idx][0];
+                    uint8_t ref_g = history[idx][1];
+                    uint8_t ref_b = history[idx][2];
+                    uint8_t ref_a = history[idx][3];
+                    int dr = r - ref_r;
+                    if (std::abs(dr) > 64) return false;
+                    uint8_t luma = (ref_r * 5 + ref_g * 4 + ref_b * 2) / 11;
+                    if (g - ref_g != (dr * luma) / 255) return false;
+                    if (b - ref_b != (dr * (255 - luma)) / 255) return false;
+                    if (channels == 4 && std::abs(a - ref_a) > 64) return false;
+                    return true;
+                };
+
+                if (check_luma(prev_luma_idx)) {
+                    luma_idx = prev_luma_idx;
+                } else {
+                    for (int j = 0; j < 64; ++j) {
+                        if (check_luma(j)) {
+                            luma_idx = j;
+                            break;
+                        }
+                    }
+                }
+
+                if (luma_idx != -1) {
+                    QoiWriteU8(QOI_OP_LUMA_TAG | luma_idx);
+                    QoiWriteU8(static_cast<uint8_t>(r - history[luma_idx][0]));
+                    if (channels == 4) {
+                        QoiWriteU8(static_cast<uint8_t>(a - history[luma_idx][3]));
+                    }
+                    encoded = true;
+                }
+            }
+
+            if (!encoded) {
+                // 3. DIFF
                 int diff_idx = -1;
                 int prev_idx = QoiColorHash(pre_r, pre_g, pre_b, pre_a);
                 if (std::abs(r - history[prev_idx][0]) <= 64 &&
@@ -111,11 +151,6 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
             }
 
             if (!encoded) {
-                // 3. LUMA (Optional, but strictly DIFF > LUMA means LUMA is rare)
-                // We could implement a check for LUMA if we wanted, but DIFF is more general.
-            }
-
-            if (!encoded) {
                 // 4. RGB/RGBA
                 if (channels == 3) {
                     QoiWriteU8(QOI_OP_RGB_TAG);
@@ -138,11 +173,11 @@ bool QoiEncode(uint32_t width, uint32_t height, uint8_t channels, uint8_t colors
 }
 
 bool QoiDecode(uint32_t &width, uint32_t &height, uint8_t &channels, uint8_t &colorspace) {
-    char c1 = QoiReadChar();
-    char c2 = QoiReadChar();
-    char c3 = QoiReadChar();
-    char c4 = QoiReadChar();
-    if (c1 != 'q' || c2 != 'o' || c3 != 'i' || c4 != 'f') return false;
+    uint8_t m1 = QoiReadU8();
+    uint8_t m2 = QoiReadU8();
+    uint8_t m3 = QoiReadU8();
+    uint8_t m4 = QoiReadU8();
+    if (m1 != 'q' || m2 != 'o' || m3 != 'i' || m4 != 'f') return false;
 
     width = QoiReadU32();
     height = QoiReadU32();
