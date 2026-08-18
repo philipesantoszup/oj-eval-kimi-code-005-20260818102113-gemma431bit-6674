@@ -211,11 +211,17 @@ bool QoiDecode(uint32_t &width, uint32_t &height, uint8_t &channels, uint8_t &co
             pixels_decoded++;
         } else if ((tag & 0xc0) == 0x40) {
             int idx = tag & 0x3f;
-            uint8_t r = history[idx][0] + QoiReadU8();
-            uint8_t g = history[idx][1] + QoiReadU8();
-            uint8_t b = history[idx][2] + QoiReadU8();
+            int8_t dr = (int8_t)QoiReadU8();
+            int8_t dg = (int8_t)QoiReadU8();
+            int8_t db = (int8_t)QoiReadU8();
+            uint8_t r = history[idx][0] + (uint8_t)dr;
+            uint8_t g = history[idx][1] + (uint8_t)dg;
+            uint8_t b = history[idx][2] + (uint8_t)db;
             uint8_t a = 255;
-            if (channels == 4) a = history[idx][3] + QoiReadU8();
+            if (channels == 4) {
+                int8_t da = (int8_t)QoiReadU8();
+                a = history[idx][3] + (uint8_t)da;
+            }
             QoiWriteU8(r); QoiWriteU8(g); QoiWriteU8(b);
             if (channels == 4) QoiWriteU8(a);
             update_history(history, r, g, b, a);
@@ -223,17 +229,20 @@ bool QoiDecode(uint32_t &width, uint32_t &height, uint8_t &channels, uint8_t &co
             pixels_decoded++;
         } else if ((tag & 0xc0) == 0x80) {
             int idx = tag & 0x3f;
-            uint8_t dr = QoiReadU8();
+            int8_t dr = (int8_t)QoiReadU8();
             uint8_t ref_r = history[idx][0];
             uint8_t ref_g = history[idx][1];
             uint8_t ref_b = history[idx][2];
             uint8_t ref_a = history[idx][3];
-            uint8_t luma = (ref_r * 5 + ref_g * 4 + ref_b * 2) / 11;
-            uint8_t r = ref_r + dr;
-            uint8_t g = ref_g + (dr * luma) / 255;
-            uint8_t b = ref_b + (dr * (255 - luma)) / 255;
+            int luma = (ref_r * 5 + ref_g * 4 + ref_b * 2) / 11;
+            uint8_t r = ref_r + (uint8_t)dr;
+            uint8_t g = ref_g + (uint8_t)((dr * luma) / 255);
+            uint8_t b = ref_b + (uint8_t)((dr * (255 - luma)) / 255);
             uint8_t a = 255;
-            if (channels == 4) a = ref_a + QoiReadU8();
+            if (channels == 4) {
+                int8_t da = (int8_t)QoiReadU8();
+                a = ref_a + (uint8_t)da;
+            }
             QoiWriteU8(r); QoiWriteU8(g); QoiWriteU8(b);
             if (channels == 4) QoiWriteU8(a);
             update_history(history, r, g, b, a);
